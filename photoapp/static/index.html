@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Отчёты</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/static/icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Отчёты">
+  <meta name="theme-color" content="#f6f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16181a" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <h1>Новый отчёт</h1>
+    <form id="report">
+      <label class="pick" for="photos">
+        <span id="pick-text">Выбрать фото</span>
+        <input id="photos" type="file" accept="image/*" multiple>
+      </label>
+      <div id="previews" class="previews" hidden></div>
+      <label class="field" for="note">Что сделано</label>
+      <textarea id="note" rows="2" maxlength="500" placeholder="наклейки, грязная, кисарт…"></textarea>
+      <button id="send" type="submit" disabled>Отправить</button>
+      <p id="error" class="error" role="alert" hidden></p>
+    </form>
+
+    <h2>Отчёты</h2>
+    <p id="empty" class="muted">Пока ничего нет.</p>
+    <ul id="jobs" class="jobs"></ul>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

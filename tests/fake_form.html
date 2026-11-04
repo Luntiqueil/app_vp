@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><title>Копия формы для тестов</title>
+<body>
+<div id="p1">
+  <div class="Question"><span>Выбери город</span><button type="button" class="dd" data-opts="Москва">Не выбрано</button></div>
+  <button type="button" id="next">Далее</button>
+</div>
+<form id="p2" hidden>
+  <div class="Question"><span>Велопомощник Москва</span><button type="button" class="dd" data-opts="111 - Тест">Не выбрано</button></div>
+  <div class="Question"><span>Номер сумки курьера</span><input name="bag"></div>
+  <div class="Question"><span>Сервис курьера с нарушением (определите по термосумке)</span>
+    <label><input type="radio" name="service">Еда</label><label><input type="radio" name="service">Лавка</label></div>
+  <div class="Question"><span>Способ передвижения курьера с нарушением</span>
+    <label><input type="radio" name="tr">Вело</label><label><input type="radio" name="tr">Пеший</label></div>
+  <div class="Question"><label><input type="checkbox" id="sticker">Отклеены наклейки на сумке</label>
+    <label><input type="checkbox">Отказался устранять замечания</label></div>
+  <div id="files" hidden>
+    <div class="FileQuestion Question"><span>Фото до устранения нарушения внешнего вида</span><input type="file" multiple>
+      <div class="QuestionLayout-ErrorContainer"></div></div>
+    <div class="FileQuestion Question"><span>Фото после устранения нарушения внешнего вида</span><input type="file" multiple>
+      <div class="QuestionLayout-ErrorContainer"></div></div>
+  </div>
+  <button type="submit">Отправить</button>
+</form>
+<div id="list" role="listbox"></div>
+<script>
+const params = new URLSearchParams(location.search);
+document.querySelectorAll(".dd").forEach((dd) => dd.addEventListener("click", () => {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  dd.dataset.opts.split("|").forEach((text) => {
+    const opt = document.createElement("div");
+    opt.setAttribute("role", "option");
+    opt.textContent = text;
+    opt.onclick = () => { dd.textContent = text; list.innerHTML = ""; };
+    list.append(opt);
+  });
+}));
+document.getElementById("next").onclick = () => { p1.hidden = true; p2.hidden = false; };
+document.getElementById("sticker").onchange = (e) => { files.hidden = !e.target.checked; };
+document.querySelectorAll("input[type=file]").forEach((input) => input.addEventListener("change", () => {
+  [...input.files].forEach((file) => {
+    const badge = document.createElement("div");
+    badge.className = "FileBadge";
+    badge.innerHTML = '<div class="FileBadge-Loader"></div>';
+    input.parentElement.append(badge);
+    // индикатор пропадает позже: как в настоящей форме, файл грузится не сразу
+    setTimeout(() => badge.querySelector(".FileBadge-Loader").remove(), 400);
+  });
+}));
+p2.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pendingUploads = document.querySelectorAll(".FileBadge-Loader").length;
+  await fetch("/submit?pending=" + pendingUploads, { method: "POST" });
+  if (params.get("stuck") !== "1") document.body.innerHTML = "<h1>Спасибо</h1>";
+});
+</script>
+</body></html>

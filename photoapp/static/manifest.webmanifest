@@ -1,0 +1,9 @@
+{
+  "name": "Отчёты",
+  "short_name": "Отчёты",
+  "display": "standalone",
+  "start_url": "/",
+  "background_color": "#f6f7f5",
+  "theme_color": "#f6f7f5",
+  "icons": [{ "src": "/static/icon.png", "sizes": "512x512", "type": "image/png" }]
+}
