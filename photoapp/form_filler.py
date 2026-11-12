@@ -306,7 +306,7 @@ async def upload_photos(page, paths: list[str]) -> list[str]:
     return problems
 
 
-async def fill(bag: str | None, photo_service: str | None = None):
+async def fill(bag: str | None, photo_service: str | None = None, chosen_service: str | None = None):
     """Открывает форму в новой вкладке и заполняет что может.
     Возвращает (список проблем, вкладка формы)."""
     problems = []
@@ -351,8 +351,8 @@ async def fill(bag: str | None, photo_service: str | None = None):
                 log.warning("Форма: не удалось выбрать способ передвижения (%s)", e)
                 problems.append("способ передвижения")
 
-        # сервис по номеру сумки; без номера — по надписи на термосумке (если узнали)
-        service = service_for(bag) or photo_service
+        # выбранный человеком сервис; иначе по номеру сумки, без номера — по надписи на термосумке
+        service = chosen_service or service_for(bag) or photo_service
         if service:
             try:
                 await _pick(page, SERVICE_LABEL, service)

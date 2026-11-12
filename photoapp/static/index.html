@@ -21,8 +21,9 @@
         <input id="photos" type="file" accept="image/*" multiple>
       </label>
       <div id="previews" class="previews" hidden></div>
-      <label class="field" for="note">Что сделано</label>
-      <textarea id="note" rows="2" maxlength="500" placeholder="наклейки, грязная, кисарт…"></textarea>
+      <div id="choices"><p class="muted">Загружаю пункты формы…</p></div>
+      <label class="field" for="note">Комментарий в Telegram</label>
+      <textarea id="note" rows="2" maxlength="500" placeholder="Необязательно"></textarea>
       <button id="send" type="submit" disabled>Отправить</button>
       <p id="error" class="error" role="alert" hidden></p>
     </form>
@@ -31,6 +32,7 @@
     <p id="empty" class="muted">Пока ничего нет.</p>
     <ul id="jobs" class="jobs"></ul>
   </main>
+  <script src="/static/choices.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

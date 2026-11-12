@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 
 from . import form_filler
+from .form_items import InvalidChoice, catalog, validate
 from . import jobs as j
 from .config import MAX_NOTE_CHARS, MAX_PHOTOS, MAX_UPLOAD_BYTES, Settings
 from .images import NotAnImage, save_as_jpeg
@@ -36,6 +37,25 @@ def _public(job: Job) -> dict:
         data.pop(private)
     data["photo_count"] = len(data.pop("photos"))
     return data
+
+
+def _bag(value: str) -> Optional[str]:
+    """Номер сумки, введённый человеком; пусто — распознать по фото."""
+    if not value.strip():
+        return None
+    bag = form_filler.pick_bag([value])
+    if not bag:
+        raise HTTPException(400, "Номер сумки: 2 латинские буквы и 4 цифры, например PY1234.")
+    return bag
+
+
+def _choices(ticks: List[str], service: str):
+    """Выбранные пункты и сервис после проверки по форме."""
+    chosen_service = service.strip() or None
+    try:
+        return validate(ticks, chosen_service), chosen_service
+    except InvalidChoice as error:
+        raise HTTPException(400, str(error))
 
 
 async def _read_limited(upload: UploadFile) -> bytes:
@@ -95,14 +115,26 @@ def create_app(settings: Settings, store: JobStore, worker: Worker) -> FastAPI:
             return RedirectResponse("/login?bad=1", status_code=303)
         return with_cookie(RedirectResponse("/", status_code=303))
 
+    @app.get("/api/form-items")
+    async def form_items():
+        return {**catalog(), "lavka_prefixes": list(form_filler.LAVKA_PREFIXES)}
+
     @app.get("/api/jobs")
     async def list_jobs():
         return {"jobs": [_public(job) for job in store.recent()], "limits": {"photos": MAX_PHOTOS}}
 
     @app.post("/api/jobs")
-    async def create_job(photos: List[UploadFile] = File(...), note: str = Form("")):
+    async def create_job(
+        photos: List[UploadFile] = File(...),
+        note: str = Form(""),
+        ticks: List[str] = Form([]),
+        service: str = Form(""),
+        bag: str = Form(""),
+    ):
         if len(photos) > MAX_PHOTOS:
             raise HTTPException(400, f"Не больше {MAX_PHOTOS} фото в одном отчёте.")
+        chosen_ticks, chosen_service = _choices(ticks, service)
+        bag_override = _bag(bag)
         contents = [await _read_limited(photo) for photo in photos]
         digest = hashlib.sha256(b"".join(sorted(hashlib.sha256(c).digest() for c in contents))).hexdigest()
         duplicate = store.by_digest(digest)
@@ -118,7 +150,10 @@ def create_app(settings: Settings, store: JobStore, worker: Worker) -> FastAPI:
         except NotAnImage:
             shutil.rmtree(folder, ignore_errors=True)
             raise HTTPException(400, "Один из файлов не похож на фото.")
-        job = store.create(job_id, note.strip()[:MAX_NOTE_CHARS], names, digest)
+        job = store.create(
+            job_id, note.strip()[:MAX_NOTE_CHARS], names, digest,
+            ticks=chosen_ticks, service_choice=chosen_service, bag_override=bag_override,
+        )
         worker.enqueue(job.id)
         return {"job": _public(job), "duplicate": False}
 
@@ -129,19 +164,26 @@ def create_app(settings: Settings, store: JobStore, worker: Worker) -> FastAPI:
         return job
 
     @app.post("/api/jobs/{job_id}/retry")
-    async def retry(job_id: str, note: Optional[str] = Form(None), bag: Optional[str] = Form(None)):
-        """Человек проверил отчёт и просит отправить. Сделанные шаги не повторяются."""
+    async def retry(
+        job_id: str,
+        note: Optional[str] = Form(None),
+        bag: Optional[str] = Form(None),
+        ticks: List[str] = Form([]),
+        ticks_sent: str = Form(""),
+        service: Optional[str] = Form(None),
+    ):
+        """Человек проверил отчёт и просит отправить. Сделанные шаги не повторяются.
+        ticks_sent=1 — список пунктов прислан целиком (пустой список тоже ответ)."""
         job = job_or_404(job_id)
         if job.status not in RETRY_ALLOWED:
             raise HTTPException(409, "Этот отчёт сейчас нельзя повторить.")
-        bag_override = job.bag_override
-        if bag and bag.strip():
-            bag_override = form_filler.pick_bag([bag])
-            if not bag_override:
-                raise HTTPException(400, "Номер сумки: 2 латинские буквы и 4 цифры, например PY1234.")
+        bag_override = _bag(bag or "") or job.bag_override
+        chosen_service = job.service_choice if service is None else (service.strip() or None)
+        new_ticks, chosen_service = _choices(list(ticks) if ticks_sent else list(job.ticks), chosen_service or "")
         new_note = job.note if note is None else note.strip()[:MAX_NOTE_CHARS]
         updated = store.update(
-            job_id, status=j.QUEUED, note=new_note, bag_override=bag_override, force=True, message=""
+            job_id, status=j.QUEUED, note=new_note, bag_override=bag_override, force=True, message="",
+            ticks=new_ticks, service_choice=chosen_service,
         )
         worker.enqueue(job_id)
         return {"job": _public(updated)}

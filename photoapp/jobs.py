@@ -33,10 +33,13 @@ class Job:
     bag_override: Optional[str] = None
     force: bool = False  # человек проверил отчёт и сам попросил отправить
     has_screenshot: bool = False
+    ticks: Tuple[str, ...] = ()  # пункты формы, которые человек отметил сам
+    service_choice: Optional[str] = None  # сервис, выбранный человеком; важнее номера сумки
 
 
 def _from_dict(raw: dict) -> Job:
-    return Job(**{**raw, "photos": tuple(raw["photos"]), "problems": tuple(raw["problems"])})
+    lists = {key: tuple(raw.get(key, ())) for key in ("photos", "problems", "ticks")}
+    return Job(**{**raw, **lists})
 
 
 class JobStore:
@@ -54,13 +57,15 @@ class JobStore:
     def new_id(self) -> str:
         return uuid.uuid4().hex
 
-    def create(self, job_id: str, note: str, photos: Tuple[str, ...], digest: str) -> Job:
+    def create(self, job_id: str, note: str, photos: Tuple[str, ...], digest: str, **choices) -> Job:
+        """choices: ticks, service_choice, bag_override — то, что человек выбрал сам."""
         job = Job(
             id=job_id,
             created_at=datetime.now(timezone.utc).isoformat(),
             note=note,
             photos=photos,
             digest=digest,
+            **choices,
         )
         self._save(job)
         return job

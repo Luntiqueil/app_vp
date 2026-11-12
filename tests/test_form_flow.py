@@ -100,3 +100,14 @@ def test_unconfirmed_when_form_keeps_showing_submit_button(form_server, photo, t
     outcome, calls = run(request_for(photo, tmp_path))
     assert outcome.state == UNCONFIRMED
     assert calls == [1]
+
+
+def test_chosen_service_wins_over_bag_prefix(form_server, photo, tmp_path):
+    async def scenario():
+        try:
+            _, page = await form_filler.fill("PY1234", None, chosen_service="Лавка")
+            return await page.get_by_label("Лавка").is_checked()
+        finally:
+            await form_filler.close_browser()
+
+    assert asyncio.run(scenario()) is True

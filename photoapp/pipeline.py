@@ -35,7 +35,7 @@ class Pipeline:
         except Exception:
             log.exception("Отчёт %s: ошибка распознавания", job_id)
             return self.store.update(job_id, status=j.FAILED, message="Не получилось прочитать фото.")
-        self.store.update(job_id, bag=rec.bag, service=_service(rec))
+        self.store.update(job_id, bag=rec.bag, service=job.service_choice or _service(rec))
         await self._telegram(job_id, paths, rec)
         await self._form(job_id, rec)
         return self._finish(job_id)
@@ -67,12 +67,13 @@ class Pipeline:
         request = FormRequest(
             bag=rec.bag,
             service=rec.service,
-            ticks=tuple(ticks_from_note(job.note)),
+            ticks=(*job.ticks, *ticks_from_note(job.note)),
             courier_id=rec.courier_id,
             phone=rec.phone,
             photos=tuple(str(folder / name) for name in job.photos),
             is_screen=rec.is_screen,
             screenshot=folder / SCREENSHOT_NAME,
+            service_choice=job.service_choice,
         )
 
         async def mark_submitting() -> None:

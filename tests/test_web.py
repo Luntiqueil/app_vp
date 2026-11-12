@@ -141,3 +141,37 @@ def test_unknown_job_is_404(authed):
     client, _, _ = authed
     assert client.post("/api/jobs/../../etc/retry").status_code == 404
     assert client.get("/api/jobs/nope/screenshot").status_code == 404
+
+
+def test_form_items_are_served(authed):
+    client, _, _ = authed
+    data = client.get("/api/form-items").json()
+    assert "Лавка" in data["services"]
+    assert any(section["title"] == "Внешний вид термосумки" for section in data["sections"])
+
+
+def test_upload_keeps_chosen_items_service_and_bag(authed):
+    client, store, _ = authed
+    files = [("photos", ("0.jpg", jpeg(), "image/jpeg"))]
+    data = {"note": "", "ticks": ["Угрожал и агрессировал", "Отклеены наклейки на сумке"],
+            "service": "Еда", "bag": "py1234"}
+    job = store.get(client.post("/api/jobs", files=files, data=data).json()["job"]["id"])
+    assert job.ticks == ("Отклеены наклейки на сумке", "Угрожал и агрессировал")
+    assert (job.service_choice, job.bag_override) == ("Еда", "PY1234")
+
+
+def test_upload_rejects_item_missing_from_the_form(authed):
+    client, store, _ = authed
+    files = [("photos", ("0.jpg", jpeg(), "image/jpeg"))]
+    response = client.post("/api/jobs", files=files, data={"ticks": ["Отклеены наклейки на сумке"], "service": "Лавка"})
+    assert response.status_code == 400
+    assert store.recent() == []
+
+
+def test_retry_replaces_chosen_items(authed):
+    client, store, _ = authed
+    job_id = upload(client, jpeg()).json()["job"]["id"]
+    store.update(job_id, status=j.REVIEW, form=j.HELD)
+    data = {"ticks": ["Выдан номер"], "ticks_sent": "1"}
+    assert client.post(f"/api/jobs/{job_id}/retry", data=data).status_code == 200
+    assert store.get(job_id).ticks == ("Выдан номер",)

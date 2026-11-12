@@ -21,7 +21,7 @@ SUBMIT_TIMEOUT_MS = 30_000
 POLL_MS = 300
 REVEAL_DELAY_S = 0.5  # форме нужно время, чтобы показать вопросы, открывшиеся после галочек
 SUBMIT_NAME = re.compile(r"^\s*Отправить\s*$")
-NO_TICKS = "не указано, что сделано: допишите слово, например «наклейки» или «грязная»"
+NO_TICKS = "не отмечено, что сделано: выберите пункты формы"
 NO_PHOTOS = "фото не прикрепились к форме"
 SUBMITTED, HELD, UNCONFIRMED = "submitted", "held", "unconfirmed"
 
@@ -36,6 +36,7 @@ class FormRequest:
     photos: Tuple[str, ...]
     is_screen: Tuple[bool, ...]
     screenshot: Path
+    service_choice: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -125,7 +126,7 @@ async def run_form(
     force: bool,
     on_submit_start: Callable[[], Awaitable[None]],
 ) -> FormOutcome:
-    base_problems, page = await form_filler.fill(request.bag, request.service)
+    base_problems, page = await form_filler.fill(request.bag, request.service, request.service_choice)
     try:
         problems, ticked, attached = await _fill_page(page, request, base_problems)
         reasons = hold_reasons(problems, ticked, attached)

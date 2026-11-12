@@ -164,3 +164,24 @@ def test_recover_requeues_unfinished_but_not_a_possible_submit(tmp_path):
     assert reloaded.get("submitted").form == j.SUBMITTED
     assert reloaded.get("submitting").form == j.UNCONFIRMED
     assert reloaded.get("submitting").status == j.REVIEW
+
+
+def test_chosen_items_and_service_reach_the_form(store):
+    store.update("a", ticks=("Угрожал и агрессировал",), service_choice="Лавка")
+    runner = Runner()
+    job = process(pipeline(store, Sender(), runner))
+    request = runner.calls[0][0]
+    assert request.ticks == ("Угрожал и агрессировал", "Отклеены наклейки на сумке")
+    assert request.service_choice == "Лавка" and job.service == "Лавка"
+
+
+def test_old_saved_jobs_without_new_fields_still_load(tmp_path):
+    folder = tmp_path / "jobs" / "old"
+    folder.mkdir(parents=True)
+    (folder / "job.json").write_text(
+        '{"id": "old", "created_at": "2026-11-05T00:00:00+00:00", "note": "", "photos": ["p.jpg"],'
+        ' "digest": "d", "problems": []}',
+        encoding="utf-8",
+    )
+    job = JobStore(tmp_path).get("old")
+    assert job.ticks == () and job.service_choice is None
