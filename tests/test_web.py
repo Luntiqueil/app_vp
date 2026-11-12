@@ -175,3 +175,9 @@ def test_retry_replaces_chosen_items(authed):
     data = {"ticks": ["Выдан номер"], "ticks_sent": "1"}
     assert client.post(f"/api/jobs/{job_id}/retry", data=data).status_code == 200
     assert store.get(job_id).ticks == ("Выдан номер",)
+
+
+def test_page_and_scripts_are_revalidated_so_updates_show_up(authed):
+    client, _, _ = authed
+    for path in ("/", "/static/app.js", "/static/choices.js"):
+        assert client.get(path).headers["cache-control"] == "no-cache"

@@ -89,7 +89,11 @@ def create_app(settings: Settings, store: JobStore, worker: Worker) -> FastAPI:
     async def require_key(request: Request, call_next):
         path = request.url.path
         if key_ok(request.cookies.get(COOKIE)) or path.startswith(OPEN_PATHS):
-            return await call_next(request)
+            response = await call_next(request)
+            if not path.startswith("/api/"):
+                # без этого Safari и ярлык на экране «Домой» держат старую страницу после обновления
+                response.headers["Cache-Control"] = "no-cache"
+            return response
         if key_ok(request.query_params.get("key")):
             return with_cookie(RedirectResponse(path, status_code=303))
         if path.startswith("/api/"):
